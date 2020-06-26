@@ -1,1 +1,0 @@
-# weather-service-with-aws
