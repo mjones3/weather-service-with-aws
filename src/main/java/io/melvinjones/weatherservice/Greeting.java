@@ -1,4 +1,4 @@
-package com.example.actuatorservice;
+package io.melvinjones.weatherservice;
 
 public class Greeting {
 

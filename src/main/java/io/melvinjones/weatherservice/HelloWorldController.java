@@ -1,4 +1,4 @@
-package com.example.actuatorservice;
+package io.melvinjones.weatherservice;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
