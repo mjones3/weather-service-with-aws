@@ -29,37 +29,25 @@ package io.melvinjones.weatherservice;
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-import java.io.ByteArrayInputStream;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Base64;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.GZIPInputStream;
 
-import com.amazonaws.util.IOUtils;
+//import com.amazonaws.auth.profile.ProfileCredentialsProvider;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
+import org.jets3t.service.S3Service;
+import org.jets3t.service.impl.rest.httpclient.RestS3Service;
+import org.jets3t.service.model.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
@@ -67,21 +55,27 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
-import software.amazon.awssdk.utils.IoUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.exceptions.InvalidStateException;
 import software.amazon.kinesis.exceptions.ShutdownException;
-import software.amazon.kinesis.lifecycle.events.InitializationInput;
-import software.amazon.kinesis.lifecycle.events.LeaseLostInput;
-import software.amazon.kinesis.lifecycle.events.ProcessRecordsInput;
-import software.amazon.kinesis.lifecycle.events.ShardEndedInput;
-import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
-
+import software.amazon.kinesis.lifecycle.events.*;
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This class will run a simple app that uses the KCL to read data and uses the AWS SDK to publish data.
@@ -255,14 +249,18 @@ public class GetRequestService {
         }
 
 
-        private String getJSONData(KinesisClientRecord record) {
+        private WeatherRequest getWeatherRequest(KinesisClientRecord record) {
 
             String s = new String();
+            WeatherRequest request = new WeatherRequest();
 
             try {
 
                 CharBuffer charBuffer = StandardCharsets.US_ASCII.decode(record.data());
                 s = charBuffer.toString();
+
+                ObjectMapper mapper = new ObjectMapper();
+                request = mapper.readValue(s, WeatherRequest.class);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -270,7 +268,39 @@ public class GetRequestService {
 
             log.info("record data: " + s);
 
-            return s;
+            return request;
+        }
+
+
+        private void writeToS3(String weatherJSON) {
+
+            String keyName = UUID.randomUUID().toString();
+            String bucketName = "mjones3-weather-reports";
+            String filePath = "/";
+
+            ProfileCredentialsProvider profileCredentialsProvider = ProfileCredentialsProvider.create();
+
+            log.info("Uploading {} to S3 bucket {}...\n", keyName, bucketName);
+
+
+            BasicAWSCredentials awsCreds = new BasicAWSCredentials("AKIAIS7ZEYAROIVQ7LSQ", "r1Dvh+9aID1VQJNge/ff54WiqWBmBRr7Pxhhq9vt");
+            AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
+                    .withRegion(Regions.US_EAST_1)
+//                    .withCredentials(ProfileCredentialsProvider.create())
+                    .withCredentials(new AWSStaticCredentialsProvider(awsCreds))
+                    .build();
+
+
+            try {
+
+
+                s3Client.putObject(bucketName, keyName, weatherJSON);
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
         }
 
         /**
@@ -285,7 +315,9 @@ public class GetRequestService {
             try {
 
                 log.info("Processing {} record(s)", processRecordsInput.records().size());
-                processRecordsInput.records().forEach(r -> log.info("Processing record pk: {} -- Seq: {}, Encryption Type: {} Data: {}", r.partitionKey(), r.sequenceNumber(), r.encryptionType(), getJSONData(r)));
+                OpenWeatherMapReader openWeatherMapReader = new OpenWeatherMapReader();
+                processRecordsInput.records().forEach(r -> writeToS3(openWeatherMapReader.getWeatherData(getWeatherRequest(r).getZip())));
+
             } catch (Throwable t) {
 
                 log.error("Caught throwable while processing records. Aborting.");
