@@ -43,3 +43,5 @@ build/test-results/test/binary/results.bin
 build/tmp/bootJar/MANIFEST.MF
 src/main/main.iml
 *.iml
+build/classes/java/main/io/melvinjones/weatherservice/WeatherRequest.class
+build/classes/java/test/io/melvinjones/weatherservice/HelloWorldApplicationTests.class

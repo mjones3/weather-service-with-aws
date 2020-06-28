@@ -29,10 +29,18 @@ package io.melvinjones.weatherservice;
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
-
+import java.io.ByteArrayInputStream;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -41,7 +49,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.zip.GZIPInputStream;
 
+import com.amazonaws.util.IOUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
@@ -56,6 +67,7 @@ import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
+import software.amazon.awssdk.utils.IoUtils;
 import software.amazon.kinesis.common.ConfigsBuilder;
 import software.amazon.kinesis.coordinator.Scheduler;
 import software.amazon.kinesis.exceptions.InvalidStateException;
@@ -68,6 +80,7 @@ import software.amazon.kinesis.lifecycle.events.ShutdownRequestedInput;
 
 import software.amazon.kinesis.processor.ShardRecordProcessor;
 import software.amazon.kinesis.processor.ShardRecordProcessorFactory;
+import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 /**
@@ -241,6 +254,25 @@ public class GetRequestService {
             }
         }
 
+
+        private String getJSONData(KinesisClientRecord record) {
+
+            String s = new String();
+
+            try {
+
+                CharBuffer charBuffer = StandardCharsets.US_ASCII.decode(record.data());
+                s = charBuffer.toString();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            log.info("record data: " + s);
+
+            return s;
+        }
+
         /**
          * Handles record processing logic. The Amazon Kinesis Client Library will invoke this method to deliver
          * data records to the application. In this example we simply log our records.
@@ -251,9 +283,11 @@ public class GetRequestService {
         public void processRecords(ProcessRecordsInput processRecordsInput) {
             MDC.put(SHARD_ID_MDC_KEY, shardId);
             try {
+
                 log.info("Processing {} record(s)", processRecordsInput.records().size());
-                processRecordsInput.records().forEach(r -> log.info("Processing record pk: {} -- Seq: {}", r.partitionKey(), r.sequenceNumber()));
+                processRecordsInput.records().forEach(r -> log.info("Processing record pk: {} -- Seq: {}, Encryption Type: {} Data: {}", r.partitionKey(), r.sequenceNumber(), r.encryptionType(), getJSONData(r)));
             } catch (Throwable t) {
+
                 log.error("Caught throwable while processing records. Aborting.");
                 Runtime.getRuntime().halt(1);
             } finally {
