@@ -48,6 +48,8 @@ import org.jets3t.service.model.S3Object;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.regions.Region;
@@ -81,9 +83,18 @@ import java.util.concurrent.TimeoutException;
  * This class will run a simple app that uses the KCL to read data and uses the AWS SDK to publish data.
  * Before running this program you must first create a Kinesis stream through the AWS console or AWS SDK.
  */
+
 public class GetRequestService {
 
     private static final Logger log = LoggerFactory.getLogger(GetRequestService.class);
+
+    @Value("${aws.kinesis.streamName}")
+    private String streamName;
+
+    @Value("${aws.kinesis.region}")
+    private String regionName;
+
+    private Region region;
 
     /**
      * Invoke the main method with 2 args: the stream name and (optionally) the region.
@@ -91,11 +102,10 @@ public class GetRequestService {
      */
     public static void main(String... args) {
 
-        new GetRequestService("weather-requests", "us-east-1").run();
+        new GetRequestService().run();
     }
 
-    private final String streamName;
-    private final Region region;
+//    private final Region region;
     private final KinesisAsyncClient kinesisClient;
 
     /**
@@ -103,14 +113,17 @@ public class GetRequestService {
      * This KinesisClient is used to send dummy data so that the consumer has something to read; it is also used
      * indirectly by the KCL to handle the consumption of the data.
      */
-    private GetRequestService(String streamName, String region) {
+    private GetRequestService() {
 
-        this.streamName = streamName;
-        this.region = Region.of(ObjectUtils.firstNonNull(region, "us-east-1"));
+
+        log.info("regionName = " + regionName);
+
+//        this.streamName = streamName;
+        this.region = Region.of(regionName);
 
         this.kinesisClient = KinesisAsyncClient.builder()
                 .credentialsProvider(ProfileCredentialsProvider.create())
-                .region(this.region).build();
+                .region(region).build();
 
     }
 
@@ -136,7 +149,7 @@ public class GetRequestService {
                                             .region(region).build();
 
 
-        ConfigsBuilder configsBuilder = new ConfigsBuilder(streamName, "weather", kinesisClient, dynamoClient, cloudWatchClient, UUID.randomUUID().toString(), new SampleRecordProcessorFactory());
+        ConfigsBuilder configsBuilder = new ConfigsBuilder(streamName, "weather", kinesisClient, dynamoClient, cloudWatchClient, UUID.randomUUID().toString(), new RecordProcessorFactory());
 
         /**
          * The Scheduler (also called Worker in earlier versions of the KCL) is the entry point to the KCL. This
@@ -214,9 +227,9 @@ public class GetRequestService {
         }
     }
 
-    private static class SampleRecordProcessorFactory implements ShardRecordProcessorFactory {
+    private static class RecordProcessorFactory implements ShardRecordProcessorFactory {
         public ShardRecordProcessor shardRecordProcessor() {
-            return new SampleRecordProcessor();
+            return new RecordsProcessor();
         }
     }
 
@@ -247,6 +260,7 @@ public class GetRequestService {
                 MDC.remove(SHARD_ID_MDC_KEY);
             }
         }
+
 
 
         private WeatherRequest getWeatherRequest(KinesisClientRecord record) {

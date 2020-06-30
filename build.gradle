@@ -12,8 +12,40 @@ repositories {
 	mavenCentral()
 }
 
+apply plugin: "groovy"
+
 dependencies {
-	compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.11.811'
+	testCompile(
+			'junit:junit:4.12',
+			'org.codehaus.groovy:groovy-all:2.4.11',
+			'org.spockframework:spock-core:1.1-groovy-2.4'
+	)
+	compile(
+//			'org.slf4j:slf4j-api:1.7.25',
+//			'org.slf4j:slf4j-log4j12:1.7.25',
+			'log4j:log4j:1.2.17'
+	)
+
+	implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.1')
+	implementation 'com.amazonaws:aws-java-sdk-s3'
+	compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.11.813'
+	// Use JUnit test framework
+//	testImplementation 'junit:junit:4.12'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	compile group: 'org.yaml', name: 'snakeyaml', version: '1.8'
+
+	//localstack and testcontainers dependencies
+	testCompile group: 'org.testcontainers', name: 'localstack', version: '1.14.3'
+	testCompile "org.testcontainers:spock:1.14.3"
+//	compile group: 'org.testcontainers', name: 'testcontainers', version: '1.11.3'
+//	compile group: 'org.testcontainers', name: 'localstack', version: '1.14.3'
+	testCompile group: 'cloud.localstack', name: 'localstack-utils', version: '0.2.1'
+
+	// mandatory dependencies for using Spock
+	compile "org.codehaus.groovy:groovy-all:2.4.15"
+	testCompile "org.spockframework:spock-core:1.2-groovy-2.4"
+
+//	compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.11.811'
 	compile group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.11.811'
 //	compile group: 'com.amazonaws', name: 'aws-java-sdk-kinesis', version: '1.11.811'
 	compile group: 'software.amazon.kinesis', name: 'amazon-kinesis-client', version: '2.2.11'
@@ -31,7 +63,18 @@ dependencies {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
 	}
 }
+processResources {
+	filesMatching('application.properties') {
+		expand(project.properties)
+	}
+}
+
 
 test {
-	useJUnitPlatform()
+//	useJUnit {
+//		includeCategories 'io.melvinjones.weatherservice.UnitTest'
+//	}
+	testLogging {
+		showStandardStreams = true
+	}
 }
