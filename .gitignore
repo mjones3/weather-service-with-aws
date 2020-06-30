@@ -63,3 +63,6 @@ build/classes/java/test/io/melvinjones/weatherservice/HelloWorldApplicationTests
 .gradle/checksums/sha1-checksums.bin
 out/production/resources/application.properties
 out/test/resources/application-test.yml
+out/production/classes/META-INF/actuator-service.main.kotlin_module
+out/test/classes/META-INF/actuator-service.main.kotlin_module
+application-test.properties
