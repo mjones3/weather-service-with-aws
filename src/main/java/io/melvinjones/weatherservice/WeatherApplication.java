@@ -99,7 +99,16 @@ public class WeatherApplication implements CommandLineRunner {
 	}
 
 	private Region region;
+
+	public static Logger getLog() {
+		return log;
+	}
+
 	private KinesisAsyncClient kinesisClient;
+	private DynamoDbAsyncClient dynamoClient;
+	private CloudWatchAsyncClient cloudWatchClient;
+	private AmazonS3 s3Client;
+
 
 	/**
 	 * Invoke the main method with 2 args: the stream name and (optionally) the region.
@@ -123,6 +132,7 @@ public class WeatherApplication implements CommandLineRunner {
 		log.info(properties.toString());
 
 		this.region = Region.of(ObjectUtils.firstNonNull(properties.getKinesisRegionName()));
+
 		this.kinesisClient = KinesisAsyncClient.builder()
 				.credentialsProvider(ProfileCredentialsProvider.create())
 				.region(this.region).build();
@@ -381,5 +391,38 @@ public class WeatherApplication implements CommandLineRunner {
 			}
 		}
 	}
+
+	public KinesisAsyncClient getKinesisClient() {
+		return kinesisClient;
+	}
+
+	public void setKinesisClient(KinesisAsyncClient kinesisClient) {
+		this.kinesisClient = kinesisClient;
+	}
+
+	public DynamoDbAsyncClient getDynamoClient() {
+		return dynamoClient;
+	}
+
+	public void setDynamoClient(DynamoDbAsyncClient dynamoClient) {
+		this.dynamoClient = dynamoClient;
+	}
+
+	public CloudWatchAsyncClient getCloudWatchClient() {
+		return cloudWatchClient;
+	}
+
+	public void setCloudWatchClient(CloudWatchAsyncClient cloudWatchClient) {
+		this.cloudWatchClient = cloudWatchClient;
+	}
+
+	public AmazonS3 getS3Client() {
+		return s3Client;
+	}
+
+	public void setS3Client(AmazonS3 s3Client) {
+		this.s3Client = s3Client;
+	}
+
 
 }
