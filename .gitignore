@@ -66,3 +66,4 @@ out/test/resources/application-test.yml
 out/production/classes/META-INF/actuator-service.main.kotlin_module
 out/test/classes/META-INF/actuator-service.main.kotlin_module
 application-test.properties
+source-classes-mapping.txt

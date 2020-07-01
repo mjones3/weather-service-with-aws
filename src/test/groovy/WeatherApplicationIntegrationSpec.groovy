@@ -58,7 +58,6 @@ class WeatherApplicationIntegrationSpec extends Specification {
 
         s3 = AmazonS3ClientBuilder
                 .standard()
-        //                .withRegion(config.getRegion())
                 .withEndpointConfiguration(localstack.getEndpointConfiguration(LocalStackContainer.Service.S3))
                 .withCredentials(localstack.getDefaultCredentialsProvider())
                 .build();

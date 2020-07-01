@@ -82,7 +82,6 @@ import java.util.concurrent.TimeoutException;
  */
 @SpringBootApplication
 @ComponentScan
-
 public class WeatherApplication implements CommandLineRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(WeatherApplication.class);
@@ -95,8 +94,10 @@ public class WeatherApplication implements CommandLineRunner {
 
 	@PostConstruct
 	public void init() {
-		SampleRecordProcessor.setProperties(properties);
+		WeatherRecordProcessor.setProperties(properties);
+		WeatherRecordProcessor.setOpenWeatherMapReader(openWeatherMapReader);
 	}
+
 	private Region region;
 	private KinesisAsyncClient kinesisClient;
 
@@ -121,10 +122,6 @@ public class WeatherApplication implements CommandLineRunner {
 
 		log.info(properties.toString());
 
-		OpenWeatherMapReader openWeatherMapReader = new OpenWeatherMapReader();
-
-//		log.info(openWeatherMapReader.getWeatherData("19096"));
-
 		this.region = Region.of(ObjectUtils.firstNonNull(properties.getKinesisRegionName()));
 		this.kinesisClient = KinesisAsyncClient.builder()
 				.credentialsProvider(ProfileCredentialsProvider.create())
@@ -140,7 +137,7 @@ public class WeatherApplication implements CommandLineRunner {
 				.region(region).build();
 
 
-		ConfigsBuilder configsBuilder = new ConfigsBuilder(properties.getStreamName(), properties.getApplicationName(), kinesisClient, dynamoClient, cloudWatchClient, UUID.randomUUID().toString(), new SampleRecordProcessorFactory());
+		ConfigsBuilder configsBuilder = new ConfigsBuilder(properties.getStreamName(), properties.getApplicationName(), kinesisClient, dynamoClient, cloudWatchClient, UUID.randomUUID().toString(), new WeatherRecordProcessorFactory());
 
 		/**
 		 * The Scheduler (also called Worker in earlier versions of the KCL) is the entry point to the KCL. This
@@ -175,12 +172,6 @@ public class WeatherApplication implements CommandLineRunner {
 			log.error("Caught exception while waiting for confirm. Shutting down.", ioex);
 		}
 
-		/**
-		 * Stops sending dummy data.
-		 */
-//        log.info("Cancelling producer and shutting down executor.");
-//        producerFuture.cancel(true);
-//        producerExecutor.shutdownNow();
 
 		/**
 		 * Stops consuming data. Finishes processing the current batch of data already received from Kinesis
@@ -218,9 +209,9 @@ public class WeatherApplication implements CommandLineRunner {
 		}
 	}
 
-	private static class SampleRecordProcessorFactory implements ShardRecordProcessorFactory {
+	private static class WeatherRecordProcessorFactory implements ShardRecordProcessorFactory {
 		public ShardRecordProcessor shardRecordProcessor() {
-			return new SampleRecordProcessor();
+			return new WeatherRecordProcessor();
 		}
 	}
 
@@ -252,9 +243,6 @@ public class WeatherApplication implements CommandLineRunner {
 	private static void writeToS3(String weatherJSON, String bucketName) {
 
 		String keyName = UUID.randomUUID().toString();
-		String filePath = "/";
-
-		ProfileCredentialsProvider profileCredentialsProvider = ProfileCredentialsProvider.create();
 
 		log.info("Uploading {} to S3 bucket {}...\n", keyName, bucketName);
 
@@ -271,7 +259,7 @@ public class WeatherApplication implements CommandLineRunner {
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.exit(1);
+//			System.exit(1);
 		}
 	}
 
@@ -279,20 +267,25 @@ public class WeatherApplication implements CommandLineRunner {
 	 * The implementation of the ShardRecordProcessor interface is where the heart of the record processing logic lives.
 	 * In this example all we do to 'process' is log info about the records.
 	 */
-	private static class SampleRecordProcessor implements ShardRecordProcessor {
+	private static class WeatherRecordProcessor implements ShardRecordProcessor {
 
 		private static final String SHARD_ID_MDC_KEY = "ShardId";
 
-		private static final Logger log = LoggerFactory.getLogger(SampleRecordProcessor.class);
+		private static final Logger log = LoggerFactory.getLogger(WeatherRecordProcessor.class);
 
 		private String shardId;
 
 		private static WeatherProperties properties;
 
+		private static OpenWeatherMapReader openWeatherMapReader;
+
 		private static void setProperties(WeatherProperties properties) {
-			SampleRecordProcessor.properties = properties;
+			WeatherRecordProcessor.properties = properties;
 		}
 
+		private static void setOpenWeatherMapReader(OpenWeatherMapReader openWeatherMapReader) {
+			WeatherRecordProcessor.openWeatherMapReader = openWeatherMapReader;
+		}
 
 		/**
 		 * Invoked by the KCL before data records are delivered to the ShardRecordProcessor instance (via
@@ -323,7 +316,7 @@ public class WeatherApplication implements CommandLineRunner {
 			try {
 
 				log.info("Processing {} record(s)", processRecordsInput.records().size());
-				OpenWeatherMapReader openWeatherMapReader = new OpenWeatherMapReader();
+
 				processRecordsInput.records().forEach(r -> writeToS3(openWeatherMapReader.getWeatherData(getWeatherRequest(r).getZip()), properties.getBucketName()));
 
 			} catch (Throwable t) {
