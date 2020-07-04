@@ -27,7 +27,7 @@ public class WeatherUtils {
 
     private AmazonS3 s3Client;
 
-    public WeatherRequest getWeatherRequest(Record record) {
+    public WeatherRequest getWeatherRequestFromRecord(Record record) {
 
         String s = new String();
         WeatherRequest request = new WeatherRequest();
