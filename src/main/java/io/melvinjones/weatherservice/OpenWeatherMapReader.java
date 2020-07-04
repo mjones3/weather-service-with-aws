@@ -38,6 +38,7 @@ public class OpenWeatherMapReader {
             e.printStackTrace();
         }
 
+        log.info("weather response: {}", json);
         return json;
 
 
