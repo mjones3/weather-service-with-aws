@@ -16,15 +16,21 @@ apply plugin: "groovy"
 
 dependencies {
 	testCompile(
-			'junit:junit:4.12',
+//			'junit:junit:4.12',
 			'org.codehaus.groovy:groovy-all:2.4.11',
 			'org.spockframework:spock-core:1.1-groovy-2.4'
+
+
 	)
 	compile(
 //			'org.slf4j:slf4j-api:1.7.25',
 //			'org.slf4j:slf4j-log4j12:1.7.25',
 			'log4j:log4j:1.2.17'
 	)
+
+	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
+//	compile 'xyz.fabiano:spring-localstack:0.0.9'
 
 //	compile group: 'com.amazonaws', name: 'dynamodb-streams-kinesis-adapter', version: '1.0.0'
 	
@@ -92,6 +98,8 @@ processResources {
 
 
 test {
+	useJUnitPlatform()
+
 //	useJUnit {
 //		includeCategories 'io.melvinjones.weatherservice.UnitTest'
 //	}
