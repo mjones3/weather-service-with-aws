@@ -23,11 +23,6 @@ public class WeatherServiceManager {
     @Autowired
     WeatherProperties weatherProperties;
 
-
-    public WeatherServiceManager(Worker worker) {
-        this.worker = worker;
-    }
-
     public WeatherServiceManager() {
 
     }
